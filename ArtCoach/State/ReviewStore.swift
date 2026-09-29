@@ -1,6 +1,5 @@
 import SwiftUI
 import PencilKit
-import CryptoKit
 
 // MARK: - 工具状态
 
@@ -52,10 +51,14 @@ final class ReviewStore {
     @ObservationIgnored weak var canvasView: PKCanvasView?
     @ObservationIgnored var inkStartMs: [Int: Int] = [:] // 每笔首次见到的墙钟偏移
     @ObservationIgnored var sessionStart = Date()
-    @ObservationIgnored let scheduler = ReviewScheduler(delay: 3.0)          // 停笔 debounce
-    @ObservationIgnored let throttleScheduler = ReviewScheduler(delay: 20.0) // 节流重试
-    @ObservationIgnored private var lastSentHash: String?
-    @ObservationIgnored private var lastSentAt: Date?
+    @ObservationIgnored let scheduler = ReviewScheduler(delay: 3.0) // 停笔 debounce
+    // 上传闸门：去重/节流/重试全藏在里面（见 UploadGate.swift）
+    @ObservationIgnored private lazy var gate = UploadGate(
+        onRetry: { [weak self] in
+            guard let self else { return }
+            Task { @MainActor in await self.uploadIfChanged() }
+        }
+    )()
 
     // ---------- 工具（toolRevision 变化 → 画布应用新工具） ----------
     var inkKind: InkKind = .pencil { didSet { bumpTool() } }
@@ -137,11 +140,9 @@ final class ReviewStore {
         canvasView?.drawing = PKDrawing()
         drawing = PKDrawing()
         inkStartMs = [:]
-        lastSentHash = nil
-        lastSentAt = nil
         sessionStart = Date()
         scheduler.cancel()
-        throttleScheduler.cancel()
+        gate.reset()
     }
 
     /// 撤销/重做后 strokes 索引整体前移 → 截断映射（近似）
@@ -151,25 +152,20 @@ final class ReviewStore {
 
     // MARK: 上传（自动批改入口：去重 + 20s 节流）
 
+    /// 自动批改入口：发不发、何时重试，全部由 UploadGate 裁决
     func uploadIfChanged() async {
         guard !isUploading, !drawing.strokes.isEmpty else { return }
-        let rep = drawing.dataRepresentation()
-        let hash = await Self.sha256(rep)
-        guard hash != lastSentHash else { return } // 内容未变 → 不发
-        if let last = lastSentAt, Date().timeIntervalSince(last) < 20 {
-            // 20 秒节流：挂起 20s 后自动重试
-            throttleScheduler.schedule { [weak self] in
-                guard let self else { return }
-                Task { @MainActor in await self.uploadIfChanged() }
-            }
-            return
+        switch await gate.submit(drawing.dataRepresentation()) {
+        case .send:
+            await requestReview(manual: false)
+        case .dedupe, .retryLater:
+            break // 闸门已处理（内容未变 / 已挂起 20s 后自动重试）
         }
-        await requestReview(manual: false, contentHash: hash)
     }
 
     // MARK: 上传（主流程）
 
-    func requestReview(manual: Bool, contentHash: String? = nil) async {
+    func requestReview(manual: Bool) async {
         guard !isUploading else { return }
         guard !drawing.strokes.isEmpty else {
             lastError = "画布是空的，先画点什么吧"
@@ -214,12 +210,8 @@ final class ReviewStore {
             let resp = try await api.review(image: png, strokes: strokes, colorStats: colorStats, meta: meta)
             self.review = resp
             self.lastError = nil
-            self.lastSentAt = Date()
-            if let h = contentHash {
-                self.lastSentHash = h
-            } else {
-                self.lastSentHash = await Self.sha256(drawing.dataRepresentation())
-            }
+            // 记账的是本次发送的快照，不是此刻画布（批改期间新画的笔不会被误判已发送）
+            await gate.markSent(drawing.dataRepresentation())
             self.cacheReview(resp)
         } catch {
             self.lastError = "批改失败：\(error.localizedDescription)"
@@ -316,31 +308,9 @@ final class ReviewStore {
         cachedReviews = Array(loaded.prefix(50))
     }
 
-    // MARK: 薄弱点聚合（来自本地缓存批改的词频，不是模型现编）
+    // MARK: 薄弱点聚合（纯函数，见 WeaknessAggregator）
 
-    struct WeaknessStat: Identifiable {
-        var name: String
-        var count: Int
-        var id: String { name }
-    }
-
-    var topWeaknesses: [WeaknessStat] {
-        var counts = [String: Int]()
-        for r in cachedReviews {
-            for w in r.weaknesses { counts[w, default: 0] += 1 }
-        }
-        return counts
-            .map { WeaknessStat(name: $0.key, count: $0.value) }
-            .sorted { $0.count > $1.count }
-            .prefix(3)
-            .map { $0 }
-    }
-
-    // MARK: 工具函数
-
-    static func sha256(_ data: Data) async -> String {
-        await Task.detached(priority: .utility) {
-            SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-        }.value
+    var topWeaknesses: [WeaknessAggregator.Stat] {
+        WeaknessAggregator.aggregate(cachedReviews)
     }
 }
