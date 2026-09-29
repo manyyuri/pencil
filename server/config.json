@@ -1,0 +1,10 @@
+{
+  "port": 4292,
+  "dataDir": "~/art-coach-data",
+  "llm": {
+    "baseUrl": "https://opencode.ai/zen/go/v1",
+    "api": "openai-compatible",
+    "textModel": "deepseek-v4-flash",
+    "visionModel": "deepseek-v4-flash-vision-exp"
+  }
+}

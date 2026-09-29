@@ -1,0 +1,27 @@
+{
+  "name": "art-coach-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "iPad 美术私教后端：PencilKit 笔迹过程数据批改（规则层 + VL 视觉层）",
+  "scripts": {
+    "dev": "tsx watch index.ts",
+    "start": "tsx index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test strokeAnalyzer.test.ts colorAnalyzer.test.ts critique.test.ts"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "multer": "^2.0.2",
+    "openai": "^5.10.0",
+    "sharp": "^0.34.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/multer": "^1.4.13",
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

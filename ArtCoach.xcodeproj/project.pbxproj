@@ -1,0 +1,316 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+		6001000000000000000000A1 = {isa = PBXBuildFile; fileRef = 5001000000000000000000A1; };
+		6001000000000000000000A2 = {isa = PBXBuildFile; fileRef = 5001000000000000000000A2; };
+		6001000000000000000000A3 = {isa = PBXBuildFile; fileRef = 5001000000000000000000A3; };
+		6001000000000000000000A4 = {isa = PBXBuildFile; fileRef = 5001000000000000000000A4; };
+		6001000000000000000000A5 = {isa = PBXBuildFile; fileRef = 5001000000000000000000A5; };
+		6001000000000000000000A6 = {isa = PBXBuildFile; fileRef = 5001000000000000000000A6; };
+		6001000000000000000000A7 = {isa = PBXBuildFile; fileRef = 5001000000000000000000A7; };
+		6001000000000000000000A8 = {isa = PBXBuildFile; fileRef = 5001000000000000000000A8; };
+		6001000000000000000000000A9 = {isa = PBXBuildFile; fileRef = 5001000000000000000000A9; };
+		6001000000000000000000AA = {isa = PBXBuildFile; fileRef = 5001000000000000000000AA; };
+		6001000000000000000000AB = {isa = PBXBuildFile; fileRef = 5001000000000000000000AB; };
+		6001000000000000000000AC = {isa = PBXBuildFile; fileRef = 5001000000000000000000AC; };
+		6001000000000000000000AD = {isa = PBXBuildFile; fileRef = 5001000000000000000000AD; };
+		6001000000000000000000AE = {isa = PBXBuildFile; fileRef = 5001000000000000000000AE; };
+		6001000000000000000000AF = {isa = PBXBuildFile; fileRef = 5001000000000000000000AF; };
+		6001000000000000000000B0 = {isa = PBXBuildFile; fileRef = 5001000000000000000000B0; };
+		6001000000000000000000B1 = {isa = PBXBuildFile; fileRef = 5001000000000000000000B1; };
+		6001000000000000000000B2 = {isa = PBXBuildFile; fileRef = 5001000000000000000000B2; };
+		6001000000000000000000B3 = {isa = PBXBuildFile; fileRef = 5001000000000000000000B3; };
+
+		9001000000000000000000C1 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ArtCoach.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5001000000000000000000A1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtCoachApp.swift; sourceTree = "<group>"; };
+		5001000000000000000000A2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		5001000000000000000000A3 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
+		5001000000000000000000A4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasView.swift; sourceTree = "<group>"; };
+		5001000000000000000000A5 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasToolbar.swift; sourceTree = "<group>"; };
+		5001000000000000000000A6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageExporter.swift; sourceTree = "<group>"; };
+		5001000000000000000000A7 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrokeCollector.swift; sourceTree = "<group>"; };
+		5001000000000000000000A8 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorAnalyzer.swift; sourceTree = "<group>"; };
+		5001000000000000000000A9 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewScheduler.swift; sourceTree = "<group>"; };
+		5001000000000000000000AA = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		5001000000000000000000AB = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Multipart.swift; sourceTree = "<group>"; };
+		5001000000000000000000AC = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		5001000000000000000000AD = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Endpoints.swift; sourceTree = "<group>"; };
+		5001000000000000000000AE = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewStore.swift; sourceTree = "<group>"; };
+		5001000000000000000000AF = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CritiquePanel.swift; sourceTree = "<group>"; };
+		5001000000000000000000B0 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryList.swift; sourceTree = "<group>"; };
+		5001000000000000000000B1 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeaknessChart.swift; sourceTree = "<group>"; };
+		5001000000000000000000B2 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TracingLayer.swift; sourceTree = "<group>"; };
+		5001000000000000000000B3 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+
+		4001000000000000000000D1 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6001000000000000000000A1,
+				6001000000000000000000A2,
+				6001000000000000000000A3,
+				6001000000000000000000A4,
+				6001000000000000000000A5,
+				6001000000000000000000A6,
+				6001000000000000000000A7,
+				6001000000000000000000A8,
+				6001000000000000000000000A9,
+				6001000000000000000000AA,
+				6001000000000000000000AB,
+				6001000000000000000000AC,
+				6001000000000000000000AD,
+				6001000000000000000000AE,
+				6001000000000000000000AF,
+				6001000000000000000000B0,
+				6001000000000000000000B1,
+				6001000000000000000000B2,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4001000000000000000000D2 = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4001000000000000000000D3 = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6001000000000000000000B3,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+
+		7001000000000000000000E1 = {
+			isa = PBXGroup;
+			children = (
+				7001000000000000000000E2,
+				7001000000000000000000E9,
+				7001000000000000000000F1,
+			);
+			sourceTree = "<group>";
+		};
+		7001000000000000000000E2 = {
+			isa = PBXGroup;
+			children = (
+				5001000000000000000000A1,
+				5001000000000000000000A2,
+				5001000000000000000000A3,
+				5001000000000000000000B3,
+				7001000000000000000000E3,
+				7001000000000000000000E6,
+				7001000000000000000000EA,
+				7001000000000000000000EC,
+			);
+			path = ArtCoach;
+			sourceTree = "<group>";
+		};
+		7001000000000000000000E3 = {
+			isa = PBXGroup;
+			children = (
+				5001000000000000000000A4,
+				5001000000000000000000A5,
+				5001000000000000000000A6,
+				5001000000000000000000A7,
+				5001000000000000000000A8,
+				5001000000000000000000A9,
+			);
+			path = Canvas;
+			sourceTree = "<group>";
+		};
+		7001000000000000000000E6 = {
+			isa = PBXGroup;
+			children = (
+				5001000000000000000000AA,
+				5001000000000000000000AB,
+				5001000000000000000000AC,
+				5001000000000000000000AD,
+			);
+			path = Net;
+			sourceTree = "<group>";
+		};
+		7001000000000000000000E9 = {
+			isa = PBXGroup;
+			children = (
+				7001000000000000000000E2,
+			);
+			name = ArtCoach;
+			sourceTree = "<group>";
+		};
+		7001000000000000000000EA = {
+			isa = PBXGroup;
+			children = (
+				5001000000000000000000AE,
+			);
+			path = State;
+			sourceTree = "<group>";
+		};
+		7001000000000000000000EC = {
+			isa = PBXGroup;
+			children = (
+				5001000000000000000000AF,
+				5001000000000000000000B0,
+				5001000000000000000000B1,
+				5001000000000000000000B2,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		7001000000000000000000F1 = {
+			isa = PBXGroup;
+			children = (
+				9001000000000000000000C1,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+
+		100100000000000000000001 = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 300100000000000000000002;
+			buildPhases = (
+				4001000000000000000000D1,
+				4001000000000000000000D2,
+				4001000000000000000000D3,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ArtCoach;
+			productName = ArtCoach;
+			productReference = 9001000000000000000000C1;
+			productType = "com.apple.product-type.application";
+		};
+
+		20010000000000000000000A = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		20010000000000000000000B = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		2001000000000000000000C = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ArtCoach/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.local.artcoach;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Debug;
+		};
+		2001000000000000000000D = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = ArtCoach/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.local.artcoach;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = 2;
+			};
+			name = Release;
+		};
+
+		300100000000000000000001 = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				20010000000000000000000A,
+				20010000000000000000000B,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		300100000000000000000002 = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2001000000000000000000C,
+				2001000000000000000000D,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+
+		800100000000000000000001 = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = 300100000000000000000001;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = zh_CN;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				"zh-Hans",
+				Base,
+			);
+			mainGroup = 7001000000000000000000E1;
+			productRefGroup = 7001000000000000000000F1;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				100100000000000000000001,
+			);
+		};
+	};
+	rootObject = 800100000000000000000001;
+}

@@ -1,0 +1,25 @@
+# macOS
+.DS_Store
+
+# Node
+node_modules/
+server/.env
+server/dist/
+
+# 运行时数据（默认 ~/art-coach-data，不在仓库；此行兜底本地误建）
+data/
+
+# Xcode
+build/
+DerivedData/
+*.xcuserdata/
+xcuserdata/
+*.xcuserstate
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# 日志与临时
+*.log
+/tmp/
