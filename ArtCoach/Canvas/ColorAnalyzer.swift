@@ -54,28 +54,27 @@ enum ColorAnalyzer {
             let r = Double(buf[i]) / 255
             let g = Double(buf[i + 1]) / 255
             let b = Double(buf[i + 2]) / 255
-            let (h, s, v) = rgb2hsv(r, g, b)
-            if v > 0.92 && s < 0.1 { continue } // 纸面白
+            let c = classifyPixel(r, g, b)
+            if c.paperWhite { continue } // 纸面白
             total += 1
-            sSum += s
-            vSum += v
-            if s >= 0.15 {
-                let idx = min(11, Int(h * 12))
+            sSum += c.s
+            vSum += c.v
+            if c.chromatic {
+                let idx = min(11, Int(c.h * 12))
                 hue[idx] += 1
             }
-            if s < 0.10 { neutral += 1 }
-            if h >= 0.917 || h <= 0.25 { warm += 1 }
-            if !(v > 0.92 && s < 0.1) {
-                nonWhite += 1
-                let q = { (x: Double) -> Int in min(7, Int(x * 8)) }
-                let key = (q(r) << 6) | (q(g) << 3) | q(b)
-                var cur = bins[key] ?? (0, 0, 0, 0)
-                cur.count += 1
-                cur.r += r
-                cur.g += g
-                cur.b += b
-                bins[key] = cur
-            }
+            if c.neutral { neutral += 1 }
+            if c.warm { warm += 1 }
+            // 能走到这里的必是非纸白像素 → 直接计入主色
+            nonWhite += 1
+            let q = { (x: Double) -> Int in min(7, Int(x * 8)) }
+            let key = (q(r) << 6) | (q(g) << 3) | q(b)
+            var cur = bins[key] ?? (0, 0, 0, 0)
+            cur.count += 1
+            cur.r += r
+            cur.g += g
+            cur.b += b
+            bins[key] = cur
         }
         guard total > 0 else { return nil }
 
@@ -97,6 +96,26 @@ enum ColorAnalyzer {
             warmRatio: Double(warm) / Double(total),
             neutralRatio: Double(neutral) / Double(total),
             dominantColors: Array(dominant)
+        )
+    }
+
+    /// 单像素分类：全部阈值口径集中在此，与服务端 colorAnalyzer.ts classifyPixel 保持一致。
+    private struct PixelClass {
+        let h: Double, s: Double, v: Double
+        let paperWhite: Bool // v>0.92 && s<0.10：纸面白，跳过
+        let chromatic: Bool // s≥0.15：计入色相桶（灰像素色相无意义）
+        let neutral: Bool // s<0.10：近灰
+        let warm: Bool // h≥0.917 || h≤0.25：暖色
+    }
+
+    private static func classifyPixel(_ r: Double, _ g: Double, _ b: Double) -> PixelClass {
+        let (h, s, v) = rgb2hsv(r, g, b)
+        return PixelClass(
+            h: h, s: s, v: v,
+            paperWhite: v > 0.92 && s < 0.1,
+            chromatic: s >= 0.15,
+            neutral: s < 0.10,
+            warm: h >= 0.917 || h <= 0.25
         )
     }
 
