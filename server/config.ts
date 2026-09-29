@@ -2,10 +2,12 @@
  * 配置加载 —— config.json 放端口/数据目录/模型名；密钥只走环境变量或
  * ~/.pi/agent/models.json（opencode-luna），绝不入库。
  */
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import './env.ts';
+import { loadEnv } from './env.ts';
+
+loadEnv(); // 必须在读取任何环境变量之前执行（原为 import 副作用，现显式调用）
 
 const SERVER_DIR = resolve(dirname(fileURLToPath(import.meta.url)));
 
@@ -55,5 +57,3 @@ export const LLM_API_KEY =
     : (process.env.LLM_API_KEY ?? process.env.GLM_API_KEY ?? opencodeLunaApiKey());
 
 export const LLM_BASE_URL = process.env.LLM_BASE_URL ?? config.llm.baseUrl;
-
-export const SERVER_DIR_PATH = SERVER_DIR;

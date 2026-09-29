@@ -1,6 +1,7 @@
 /**
- * colorAnalyzer —— 服务端用 sharp 对上传 PNG 复算一份色彩统计，
+ * colorAnalyzer —— 纯函数：对已解码的 64×64 RGB 原始像素算一份色彩统计，
  * 与 iPad 端 CoreGraphics 的结果互证（差异 > 5% 记日志，以后端为准）。
+ * PNG 解码在 imageIO.ts（本模块不 import sharp，保持零 I/O）。
  * 算法口径与前端 ColorAnalyzer 完全一致（spec 8.2）：
  *   64×64 采样 / HSV / 12 个 30° 色相桶 / 暖色 h≥0.917||h≤0.25 / 近灰 s<0.10 / 跳过 v<0.05。
  */
@@ -39,6 +40,30 @@ function rgb2hsv(r: number, g: number, b: number): [number, number, number] {
   return [h, s, max];
 }
 
+/** 单像素分类（全部阈值口径集中在此，与 iOS ColorAnalyzer 保持一致） */
+interface PixelClass {
+  h: number;
+  s: number;
+  v: number;
+  paperWhite: boolean; // v>0.92 && s<0.10：纸面白，跳过
+  chromatic: boolean; // s≥0.15：计入色相桶（灰像素色相无意义）
+  neutral: boolean; // s<0.10：近灰
+  warm: boolean; // h≥0.917 || h≤0.25：暖色
+}
+
+function classifyPixel(r: number, g: number, b: number): PixelClass {
+  const [h, s, v] = rgb2hsv(r, g, b);
+  return {
+    h,
+    s,
+    v,
+    paperWhite: v > 0.92 && s < 0.1,
+    chromatic: s >= 0.15,
+    neutral: s < 0.10,
+    warm: h >= 0.917 || h <= 0.25,
+  };
+}
+
 /** 从 64×64 RGB 原始像素算 ColorStats（与服务端/iOS 共用口径的纯函数） */
 export function colorStatsFromRawRGB(raw: Uint8Array, n: number): ColorStats | null {
   const hue = new Array<number>(12).fill(0);
@@ -47,37 +72,34 @@ export function colorStatsFromRawRGB(raw: Uint8Array, n: number): ColorStats | n
   let warm = 0;
   let neutral = 0;
   let total = 0;
-  const bins = new Map<number, { count: number; r: number; g: number; b: number }>();
   let nonWhite = 0;
+  const bins = new Map<number, { count: number; r: number; g: number; b: number }>();
+  const q = (x: number) => Math.min(7, Math.floor(x * 8)); // 主色 3bit/通道量化
 
   for (let i = 0; i < raw.length; i += 4) {
     const r = raw[i]! / 255;
     const g = raw[i + 1]! / 255;
- const b = raw[i + 2]! / 255;
-    const [h, s, v] = rgb2hsv(r, g, b);
-    if (v > 0.92 && s < 0.1) continue; // 跳过纸面白（HSV 的 v 是亮度，白纸 v≈1）
+    const b = raw[i + 2]! / 255;
+    const c = classifyPixel(r, g, b);
+    if (c.paperWhite) continue; // 跳过纸面白（HSV 的 v 是亮度，白纸 v≈1）
     total++;
-    sSum += s;
-    vSum += v;
-    if (s >= 0.15) {
-      // 灰像素色相无意义，只有彩色像素计入色相桶
-      const hIdx = Math.min(11, Math.floor(h * 12));
+    sSum += c.s;
+    vSum += c.v;
+    if (c.chromatic) {
+      const hIdx = Math.min(11, Math.floor(c.h * 12));
       hue[hIdx] = (hue[hIdx] ?? 0) + 1;
     }
-    if (s < 0.1) neutral++;
-    if (h >= 0.917 || h <= 0.25) warm++;
-    // 主色：3bit/通道量化（8³=512 桶），跳过近白
-    if (!(v > 0.92 && s < 0.1)) {
-      nonWhite++;
-      const q = (x: number) => Math.min(7, Math.floor(x * 8));
-      const k2 = (q(r) << 6) | (q(g) << 3) | q(b);
-      const cur = bins.get(k2) ?? { count: 0, r: 0, g: 0, b: 0 };
-      cur.count++;
-      cur.r += r;
-      cur.g += g;
-      cur.b += b;
-      bins.set(k2, cur);
-    }
+    if (c.neutral) neutral++;
+    if (c.warm) warm++;
+    // 能走到这里的必是非纸白像素 → 直接计入主色（8³=512 桶）
+    nonWhite++;
+    const k2 = (q(r) << 6) | (q(g) << 3) | q(b);
+    const cur = bins.get(k2) ?? { count: 0, r: 0, g: 0, b: 0 };
+    cur.count++;
+    cur.r += r;
+    cur.g += g;
+    cur.b += b;
+    bins.set(k2, cur);
   }
   if (total === 0) return null;
 
@@ -101,17 +123,6 @@ export function colorStatsFromRawRGB(raw: Uint8Array, n: number): ColorStats | n
     neutralRatio: round(neutral / total),
     dominantColors: dominant,
   };
-}
-
-/** PNG → 服务端 ColorStats（sharp 降采样 64×64） */
-export async function colorStatsFromPng(png: Buffer, n = 64): Promise<ColorStats | null> {
-  const sharp = (await import('sharp')).default;
-  const { data } = await sharp(png, { failOn: 'none' })
-    .removeAlpha()
-    .resize(n, n, { fit: 'fill' })
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  return colorStatsFromRawRGB(new Uint8Array(data), n);
 }
 
 export interface CrossCheckResult {

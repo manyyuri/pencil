@@ -34,7 +34,6 @@ test('未配置 LLM（vl=null）→ degraded:true，规则批语可用，不抛�
     vl: null,
     stroke: analyzeStrokes(onePayload()),
     color: null,
-    crossCheck: null,
     lastTaskId: null,
   });
   assert.equal(r.degraded, true);
@@ -99,7 +98,6 @@ test('VL 说明暗不足但规则 forceContrast 高 → 以规则为准改判 ok
     },
     stroke,
     color: null,
-    crossCheck: null,
     lastTaskId: null,
   });
   const valueSection = r.sections.find((s) => s.key === 'value' && s.evidence.includes('vl:value'));
@@ -116,7 +114,6 @@ test('weaknesses 来自 needs-work 段（去重），nextAssignment 避开刚做
     vl: null,
     stroke: analyzeStrokes(onePayload()),
     color: null,
-    crossCheck: null,
     lastTaskId: 'value-sphere-02',
   });
   for (const w of r.weaknesses) assert.ok(typeof w === 'string' && w.length > 0);

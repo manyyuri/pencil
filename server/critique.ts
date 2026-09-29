@@ -7,12 +7,13 @@
  *  3. VL 结论与规则数据冲突时以规则为准并改写措辞；
  *  4. 未配置 LLM → degraded:true，纯规则批语。
  */
-import type { StrokeAnalysis, StrokeMetrics, RuleFinding } from './strokeAnalyzer.ts';
-import type { ColorStats, CrossCheckResult } from './colorAnalyzer.ts';
+import type { StrokeAnalysis, StrokeMetrics, RuleFinding, Verdict } from './strokeAnalyzer.ts';
+import type { ColorStats } from './colorAnalyzer.ts';
 import type { VLResult } from './vision.ts';
 import { pickAssignment, type Assignment } from './assignments.ts';
 
-export type Verdict = 'good' | 'ok' | 'needs-work';
+// Verdict 的唯一真源在 strokeAnalyzer.ts，这里转发导出以保留原有 import 路径
+export type { Verdict };
 
 export interface ReviewSection {
   key: string;
@@ -125,7 +126,6 @@ export interface BuildReviewInput {
   vl: VLResult | null;
   stroke: StrokeAnalysis;
   color: ColorStats | null;
-  crossCheck: CrossCheckResult | null;
   lastTaskId: string | null;
 }
 

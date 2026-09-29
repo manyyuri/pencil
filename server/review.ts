@@ -11,8 +11,9 @@ import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { upload, reviewUploadFields, firstFile } from './upload.ts';
 import { absPath, ensureDir, saveReviewFiles, listReviewIds, readJsonOrNull } from './store.ts';
-import { grayMapFromPng, analyzeStrokes, type StrokesPayload, type GrayMap } from './strokeAnalyzer.ts';
-import { colorStatsFromPng, crossCheckColor, type ColorStats } from './colorAnalyzer.ts';
+import { grayMapFromPng, colorStatsFromPng } from './imageIO.ts';
+import { analyzeStrokes, type StrokesPayload, type GrayMap } from './strokeAnalyzer.ts';
+import { crossCheckColor, type ColorStats } from './colorAnalyzer.ts';
 import { safeVisionCall } from './vision.ts';
 import { buildReview, type ReviewResponse } from './critique.ts';
 import { getAssignment, ASSIGNMENTS } from './assignments.ts';
@@ -82,7 +83,8 @@ reviewRouter.post('/review', upload.fields(reviewUploadFields), async (req, res)
   const gray: GrayMap | null = await grayMapFromPng(png).catch(() => null);
   const stroke = analyzeStrokes(strokesPayload, gray);
   const serverColor = await colorStatsFromPng(png).catch(() => null);
-  const crossCheck = crossCheckColor(clientColorStats, serverColor);
+  // 前后端色彩统计互证：不一致时 crossCheckColor 内部记日志（观测用，不进入响应）
+  crossCheckColor(clientColorStats, serverColor);
 
   // VL 层（可能慢 / 可能降级）
   const vl = await safeVisionCall(png);
@@ -97,7 +99,6 @@ reviewRouter.post('/review', upload.fields(reviewUploadFields), async (req, res)
     vl,
     stroke,
     color: serverColor,
-    crossCheck,
     lastTaskId: meta.data.taskId,
   });
   // nextAssignment 的参考图绝对地址（有 refSvg 的任务才有底图）

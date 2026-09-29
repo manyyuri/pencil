@@ -1,5 +1,5 @@
 /**
- * strokeAnalyzer —— 笔迹过程分析（本项目核心资产，纯确定性，零 LLM）。
+ * strokeAnalyzer —— 笔迹过程分析（本项目核心资产，纯确定性，零 LLM、零 I/O）。
  *
  * 输入是 iPad 端 StrokeCollector 上传的笔迹 JSON（spec 5.4，语义对齐 W3C InkML 的
  * t/x/y/force/azimuth/altitude 通道）。输出 7 个过程指标 + 规则层 findings：
@@ -14,9 +14,10 @@
  *   rhythmPauses       >8s 的停笔次数
  *   completion         画布非白像素覆盖率（需灰度图）
  *
+ * 本模块刻意保持为纯函数集合（不 import sharp 等 I/O 依赖）：位图解码在 imageIO.ts。
+ * 每个度量轴各自成函数，analyzeStrokes 只做编排——便于单测与复杂度控制。
  * 所有函数纯输入纯输出，空笔迹不抛异常。
  */
-import sharp from 'sharp';
 
 export interface StrokePointJson {
   t: number;
@@ -120,29 +121,15 @@ export function axialWeightedStdDeg(anglesRad: number[], weights: number[]): num
   return Math.min(90, round(stdDeg, 1));
 }
 
-export function analyzeStrokes(payload: StrokesPayload | null, gray?: GrayMap | null): StrokeAnalysis {
-  const strokes = payload?.strokes ?? [];
-  const metrics: StrokeMetrics = {
-    strokeCount: strokes.length,
-    forceAvailable: false,
-    avgForce: null,
-    forceContrast: null,
-    hatchAngleStdDeg: null,
-    reworkRegions: null,
-    earlyDetailRatio: null,
-    rhythmPauses: null,
-    completion: null,
-  };
-  const findings: RuleFinding[] = [];
-  if (strokes.length === 0) {
-    if (gray) metrics.completion = completionFromGray(gray);
-    return { metrics, findings };
-  }
+// ---------- 各度量轴（纯函数，逐轴独立可测） ----------
 
-  const canvas = payload!.canvas;
-  const canvasDiag = Math.hypot(canvas.width, canvas.height);
+interface ForceStats {
+  forceAvailable: boolean;
+  avgForce: number | null;
+}
 
-  // ---------- forceAvailable / avgForce ----------
+/** 压感可用性（force 恒定说明手指/模拟器）+ 全局平均压感 */
+function computeForceStats(strokes: StrokeJson[]): ForceStats {
   const fSet = new Set<number>();
   let fSum = 0;
   let fCount = 0;
@@ -153,10 +140,19 @@ export function analyzeStrokes(payload: StrokesPayload | null, gray?: GrayMap | 
       fCount++;
     }
   }
-  metrics.forceAvailable = fSet.size > 3; // 手指/模拟器 force 恒定
-  if (fCount > 0) metrics.avgForce = round(fSum / fCount);
+  return {
+    forceAvailable: fSet.size > 3, // 手指/模拟器 force 恒定
+    avgForce: fCount > 0 ? round(fSum / fCount) : null,
+  };
+}
 
-  // ---------- hatchAngleStdDeg（排线角度方差，长度加权） ----------
+interface HatchResult {
+  stdDeg: number | null;
+  sampleCount: number; // 参与计算的排线根数（供 findings 判断样本量）
+}
+
+/** 排线角度方差（长度加权；太短的点触不算排线） */
+function computeHatchStd(strokes: StrokeJson[], canvasDiag: number): HatchResult {
   const angles: number[] = [];
   const weights: number[] = [];
   for (const s of strokes) {
@@ -165,10 +161,11 @@ export function analyzeStrokes(payload: StrokesPayload | null, gray?: GrayMap | 
     angles.push(strokeAngle(s));
     weights.push(len);
   }
-  metrics.hatchAngleStdDeg = axialWeightedStdDeg(angles, weights);
+  return { stdDeg: axialWeightedStdDeg(angles, weights), sampleCount: angles.length };
+}
 
-  // ---------- reworkRegions（8×8 网格涂改检测） ----------
-  const G = 8;
+/** 8×8 网格涂改热区数：网格内 ≥4 笔、方向杂乱且笔短 → 反复涂改 */
+function computeReworkRegions(strokes: StrokeJson[], canvasDiag: number, G = 8): number {
   interface CellStat {
     strokes: Set<number>;
     angleSum: [number, number]; // 双倍角向量和，用于网格内方向方差
@@ -204,77 +201,84 @@ export function analyzeStrokes(payload: StrokesPayload | null, gray?: GrayMap | 
     const meanLen = c.lenSum / c.strokes.size;
     if (rBar < 0.7 && meanLen < canvasDiag * 0.12) rework++;
   }
-  metrics.reworkRegions = rework;
+  return rework;
+}
 
-  // ---------- earlyDetailRatio（过早抠细节） ----------
+/** 前 30% 作画时间里"小笔画"占比（高 = 过早抠细节） */
+function computeEarlyDetailRatio(strokes: StrokeJson[], canvasDiag: number): number {
   const durationMs = Math.max(...strokes.map((s) => s.endMs), 0);
-  if (durationMs > 0) {
-    const earlyWindow = durationMs * 0.3;
-    const early = strokes.filter((s) => s.startMs <= earlyWindow);
-    if (early.length > 0) {
-      const small = early.filter((s) => Math.hypot(s.bbox[2], s.bbox[3]) < canvasDiag * 0.08);
-      metrics.earlyDetailRatio = round(small.length / early.length);
-    } else {
-      metrics.earlyDetailRatio = 0;
-    }
-  } else {
-    metrics.earlyDetailRatio = 0;
-  }
+  if (durationMs <= 0) return 0;
+  const earlyWindow = durationMs * 0.3;
+  const early = strokes.filter((s) => s.startMs <= earlyWindow);
+  if (early.length === 0) return 0;
+  const small = early.filter((s) => Math.hypot(s.bbox[2], s.bbox[3]) < canvasDiag * 0.08);
+  return round(small.length / early.length);
+}
 
-  // ---------- rhythmPauses ----------
+/** >8s 的停笔次数 */
+function computeRhythmPauses(strokes: StrokeJson[]): number {
   const starts = strokes.map((s) => s.startMs).sort((a, b) => a - b);
   let pauses = 0;
   for (let k = 1; k < starts.length; k++) {
     if (starts[k]! - starts[k - 1]! > 8000) pauses++;
   }
-  metrics.rhythmPauses = pauses;
+  return pauses;
+}
 
-  // ---------- completion + forceContrast（需要灰度图） ----------
-  if (gray) {
-    metrics.completion = completionFromGray(gray);
-    if (metrics.forceAvailable) {
-      const pairs: { lum: number; f: number }[] = [];
-      for (const s of strokes) {
-        for (const p of s.pts) {
-          const cx = Math.min(gray.n - 1, Math.max(0, Math.floor(p.nx * gray.n)));
-          const cy = Math.min(gray.n - 1, Math.max(0, Math.floor(p.ny * gray.n)));
-          pairs.push({ lum: gray.data[cy * gray.n + cx]!, f: p.f });
-        }
-      }
-      if (pairs.length >= 8) {
-        const lums = pairs.map((p) => p.lum).sort((a, b) => a - b);
-        const q1 = lums[Math.floor(lums.length * 0.25)]!;
-        const q3 = lums[Math.floor(lums.length * 0.75)]!;
-        const dark = pairs.filter((p) => p.lum <= q1);
-        const bright = pairs.filter((p) => p.lum >= q3);
-        if (dark.length > 0 && bright.length > 0) {
-          const mean = (arr: { f: number }[]) => arr.reduce((a, p) => a + p.f, 0) / arr.length;
-          metrics.forceContrast = round(mean(dark) - mean(bright));
-        }
-      }
+/** 暗部（灰度 Q1 区域）与亮部（Q3 区域）的平均压感差；样本不足返回 null */
+function computeForceContrast(strokes: StrokeJson[], gray: GrayMap): number | null {
+  const pairs: { lum: number; f: number }[] = [];
+  for (const s of strokes) {
+    for (const p of s.pts) {
+      const cx = Math.min(gray.n - 1, Math.max(0, Math.floor(p.nx * gray.n)));
+      const cy = Math.min(gray.n - 1, Math.max(0, Math.floor(p.ny * gray.n)));
+      pairs.push({ lum: gray.data[cy * gray.n + cx]!, f: p.f });
     }
   }
+  if (pairs.length < 8) return null;
+  const lums = pairs.map((p) => p.lum).sort((a, b) => a - b);
+  const q1 = lums[Math.floor(lums.length * 0.25)]!;
+  const q3 = lums[Math.floor(lums.length * 0.75)]!;
+  const dark = pairs.filter((p) => p.lum <= q1);
+  const bright = pairs.filter((p) => p.lum >= q3);
+  if (dark.length === 0 || bright.length === 0) return null;
+  const mean = (arr: { f: number }[]) => arr.reduce((a, p) => a + p.f, 0) / arr.length;
+  return round(mean(dark) - mean(bright));
+}
 
-  // ---------- 规则层 findings（数值解释权在这里，不在 VL） ----------
-  if (metrics.forceContrast !== null && metrics.forceAvailable) {
-    if (metrics.forceContrast < 0.12) {
+// ---------- 规则层 findings（数值解释权在这里，不在 VL） ----------
+
+interface FindingContext {
+  strokeCount: number;
+  hatchSampleCount: number;
+}
+
+/**
+ * 由指标生成规则 findings。判定顺序与文案是契约的一部分，不得改动：
+ * value → line → earlyDetail → rework → rhythm → completeness。
+ */
+function buildFindings(m: StrokeMetrics, ctx: FindingContext): RuleFinding[] {
+  const findings: RuleFinding[] = [];
+
+  if (m.forceContrast !== null && m.forceAvailable) {
+    if (m.forceContrast < 0.12) {
       findings.push({
         key: 'value',
         title: '明暗压感层次',
         verdict: 'needs-work',
-        comment: `暗部与亮部的平均压感差只有 ${metrics.forceContrast.toFixed(2)}（建议 ≥0.20），画面容易发灰。练习时刻意"亮部轻扫、暗部压重"。`,
+        comment: `暗部与亮部的平均压感差只有 ${m.forceContrast.toFixed(2)}（建议 ≥0.20），画面容易发灰。练习时刻意"亮部轻扫、暗部压重"。`,
         evidence: ['stroke:force-contrast-low'],
       });
-    } else if (metrics.forceContrast >= 0.25) {
+    } else if (m.forceContrast >= 0.25) {
       findings.push({
         key: 'value',
         title: '明暗压感层次',
         verdict: 'good',
-        comment: `暗部与亮部平均压感差 ${metrics.forceContrast.toFixed(2)}，下笔轻重有层次，继续保持。`,
+        comment: `暗部与亮部平均压感差 ${m.forceContrast.toFixed(2)}，下笔轻重有层次，继续保持。`,
         evidence: ['stroke:force-contrast-ok'],
       });
     }
-  } else if (!metrics.forceAvailable && strokes.length > 0) {
+  } else if (!m.forceAvailable && ctx.strokeCount > 0) {
     findings.push({
       key: 'process',
       title: '压感数据不可用',
@@ -284,65 +288,112 @@ export function analyzeStrokes(payload: StrokesPayload | null, gray?: GrayMap | 
     });
   }
 
-  if (metrics.hatchAngleStdDeg !== null) {
-    if (metrics.hatchAngleStdDeg > 30) {
+  if (m.hatchAngleStdDeg !== null) {
+    if (m.hatchAngleStdDeg > 30) {
       findings.push({
         key: 'line',
         title: '排线方向',
         verdict: 'needs-work',
-        comment: `排线角度方差 ${metrics.hatchAngleStdDeg.toFixed(1)}°（≤12° 为稳），手腕方向控制不稳或对结构理解不足，先做同方向排线格子练习。`,
+        comment: `排线角度方差 ${m.hatchAngleStdDeg.toFixed(1)}°（≤12° 为稳），手腕方向控制不稳或对结构理解不足，先做同方向排线格子练习。`,
         evidence: ['stroke:hatch-angle-scatter'],
       });
-    } else if (metrics.hatchAngleStdDeg <= 12 && angles.length >= 8) {
+    } else if (m.hatchAngleStdDeg <= 12 && ctx.hatchSampleCount >= 8) {
       findings.push({
         key: 'line',
         title: '排线方向',
         verdict: 'good',
-        comment: `排线角度方差仅 ${metrics.hatchAngleStdDeg.toFixed(1)}°，方向统一，线条控制稳。`,
+        comment: `排线角度方差仅 ${m.hatchAngleStdDeg.toFixed(1)}°，方向统一，线条控制稳。`,
         evidence: ['stroke:hatch-angle-steady'],
       });
     }
   }
 
-  if ((metrics.earlyDetailRatio ?? 0) > 0.5 && strokes.length >= 10) {
+  if ((m.earlyDetailRatio ?? 0) > 0.5 && ctx.strokeCount >= 10) {
     findings.push({
       key: 'process',
       title: '作画顺序',
       verdict: 'needs-work',
-      comment: `前 30% 时间里 ${(metrics.earlyDetailRatio! * 100).toFixed(0)}% 的笔画是小范围刻画——大形还没锁定就开始抠细节。下一张先只画大外形与大明暗，细节留到最后 20% 时间。`,
+      comment: `前 30% 时间里 ${(m.earlyDetailRatio! * 100).toFixed(0)}% 的笔画是小范围刻画——大形还没锁定就开始抠细节。下一张先只画大外形与大明暗，细节留到最后 20% 时间。`,
       evidence: ['stroke:early-detail'],
     });
   }
 
-  if ((metrics.reworkRegions ?? 0) >= 4) {
+  if ((m.reworkRegions ?? 0) >= 4) {
     findings.push({
       key: 'process',
       title: '反复涂改',
       verdict: 'needs-work',
-      comment: `有 ${metrics.reworkRegions} 个区域被 ≥4 笔反复覆盖且方向杂乱，说明落笔前观察不够。改用"轻起稿、多比较、少修改"的节奏。`,
+      comment: `有 ${m.reworkRegions} 个区域被 ≥4 笔反复覆盖且方向杂乱，说明落笔前观察不够。改用"轻起稿、多比较、少修改"的节奏。`,
       evidence: ['stroke:rework-many'],
     });
   }
 
-  if ((metrics.rhythmPauses ?? 0) > 5) {
+  if ((m.rhythmPauses ?? 0) > 5) {
     findings.push({
       key: 'process',
       title: '作画节奏',
       verdict: 'ok',
-      comment: `观察到 ${metrics.rhythmPauses} 次超过 8 秒的停笔。停下来观察是好事，但如果停顿集中在纠结局部，就把计时器打开强制推进。`,
+      comment: `观察到 ${m.rhythmPauses} 次超过 8 秒的停笔。停下来观察是好事，但如果停顿集中在纠结局部，就把计时器打开强制推进。`,
       evidence: ['stroke:rhythm-scattered'],
     });
   }
 
-  if (metrics.completion !== null && metrics.completion < 0.04) {
+  if (m.completion !== null && m.completion < 0.04) {
     findings.push({
       key: 'completeness',
       title: '画面完成度',
       verdict: 'needs-work',
-      comment: `画布覆盖率 ${(metrics.completion * 100).toFixed(1)}%，构图明显偏小或未铺开。起稿时先用长直线把主体顶到画面边缘 80% 的位置。`,
+      comment: `画布覆盖率 ${(m.completion * 100).toFixed(1)}%，构图明显偏小或未铺开。起稿时先用长直线把主体顶到画面边缘 80% 的位置。`,
       evidence: ['stroke:coverage-low'],
     });
   }
+
+  return findings;
+}
+
+// ---------- 编排 ----------
+
+export function analyzeStrokes(payload: StrokesPayload | null, gray?: GrayMap | null): StrokeAnalysis {
+  const strokes = payload?.strokes ?? [];
+  const metrics: StrokeMetrics = {
+    strokeCount: strokes.length,
+    forceAvailable: false,
+    avgForce: null,
+    forceContrast: null,
+    hatchAngleStdDeg: null,
+    reworkRegions: null,
+    earlyDetailRatio: null,
+    rhythmPauses: null,
+    completion: null,
+  };
+  if (strokes.length === 0) {
+    if (gray) metrics.completion = completionFromGray(gray);
+    return { metrics, findings: [] };
+  }
+
+  const canvas = payload!.canvas;
+  const canvasDiag = Math.hypot(canvas.width, canvas.height);
+
+  const force = computeForceStats(strokes);
+  metrics.forceAvailable = force.forceAvailable;
+  metrics.avgForce = force.avgForce;
+
+  const hatch = computeHatchStd(strokes, canvasDiag);
+  metrics.hatchAngleStdDeg = hatch.stdDeg;
+
+  metrics.reworkRegions = computeReworkRegions(strokes, canvasDiag);
+  metrics.earlyDetailRatio = computeEarlyDetailRatio(strokes, canvasDiag);
+  metrics.rhythmPauses = computeRhythmPauses(strokes);
+
+  if (gray) {
+    metrics.completion = completionFromGray(gray);
+    if (metrics.forceAvailable) metrics.forceContrast = computeForceContrast(strokes, gray);
+  }
+
+  const findings = buildFindings(metrics, {
+    strokeCount: strokes.length,
+    hatchSampleCount: hatch.sampleCount,
+  });
 
   return { metrics, findings };
 }
@@ -352,14 +403,4 @@ export function completionFromGray(gray: GrayMap): number | null {
   let ink = 0;
   for (const v of gray.data) if (v < 245) ink++;
   return round(ink / gray.data.length);
-}
-
-/** PNG Buffer → 64×64 灰度图（sharp 降采样） */
-export async function grayMapFromPng(png: Buffer, n = 64): Promise<GrayMap> {
-  const { data } = await sharp(png, { failOn: 'none' })
-    .grayscale()
-    .resize(n, n, { fit: 'fill' })
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  return { n, data: new Uint8Array(data) };
 }

@@ -47,11 +47,6 @@ export function saveReviewFiles(
   if (strokesJson) writeAtomic(join(dir, 'strokes.json'), strokesJson);
 }
 
-export interface ReviewIndexEntry {
-  reviewId: string;
-  createdAt: string;
-}
-
 /** 列出所有 reviewId（按目录名），最新在前（reviewId 含时间戳，字典序≈时间序，再按 createdAt 校正） */
 export function listReviewIds(): string[] {
   const dir = absPath('reviews');
